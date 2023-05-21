@@ -122,13 +122,20 @@ typedef struct {
   int limit_switch_pin;
 } Motor;
 
+typedef struct {
+  int therm_pin;
+  int heating_pin;
+  float temp;
+  float reach_temp;
+} Heater;
+
 //------------------------------------------------------------------------------
 // GLOBALS
 //------------------------------------------------------------------------------
 Axis a[NUM_AXIES];  // for line()
 Axis atemp;  // for line()
 Motor motors[NUM_AXIES];
-float Temp_C  = 0;
+Heater heaters[2];
 
 // speeds
 float fr=0;  // human version
@@ -337,8 +344,14 @@ void help() {
   Serial.println(F("G90; - absolute mode"));
   Serial.println(F("G91; - relative mode"));
   Serial.println(F("G92 X/Y/Z(steps); - change logical position"));
-  Serial.println(F("M18; - disable motors"));
   Serial.println(F("M17; - enable motors"));
+  Serial.println(F("M18; - disable motors"));
+  Serial.println(F("M106; - turn on hotend fan"));
+  Serial.println(F("M107; - turn off hotend fan"));
+  Serial.println(F("M104 S(temp); - set hotend temperature"));
+  Serial.println(F("M109 S(temp); - set hotend temperature and wait"));
+  Serial.println(F("M140 S(temp); - set bed temperature"));
+  Serial.println(F("M190 S(temp); - set bed temperature and wait"));
   Serial.println(F("M100; - this help message"));
   Serial.println(F("M114; - report position and feedrate"));
   Serial.println(F("All commands must end with a newline."));
@@ -375,12 +388,45 @@ void processCommand(String command) {
   switch(cmd) {
   case  17:  motor_enable();  break;
   case  18:  motor_disable();  break;
+  case 104: {  // set hotend temperature
+    heaters[0].reach_temp = parseNumber('S',0,command);
+    break;
+  }
+  case 109: {  // set hotend temperature and wait
+    heaters[0].reach_temp = parseNumber('S',0,command);
+    Temp_control_wait(0);
+    break;
+  }
+  case 140: {  // set bed temperature
+    heaters[1].reach_temp = parseNumber('S',0,command);
+    break;
+  }
+  case 190: {  // set bed temperature and wait
+    heaters[1].reach_temp = parseNumber('S',0,command);
+    Temp_control_wait(1);
+    break;
+  }
   case 100:  help();  break;
   case 114:  where();  break;
   default:  break;
   }
 }
 
+void heater_setup(){
+  heaters[0].therm_pin = TEMP_0_PIN;
+  heaters[0].heating_pin = RAMPS_D10_PIN;
+  heaters[0].temp = 0;
+  heaters[0].reach_temp = 0;
+  pinMode(heaters[0].therm_pin, INPUT_PULLUP);
+  pinMode(heaters[0].heating_pin, OUTPUT);
+
+  heaters[1].therm_pin = TEMP_1_PIN;
+  heaters[1].heating_pin = RAMPS_D8_PIN;
+  heaters[1].temp = 0;
+  heaters[1].reach_temp = 0;
+  pinMode(heaters[0].therm_pin, INPUT_PULLUP);
+  pinMode(heaters[1].heating_pin, OUTPUT);
+}
 /**
  * set up the pins for each motor
  * Pins fits a CNCshieldV3.xx
@@ -412,7 +458,6 @@ void motor_setup() {
 
 }
 
-
 void motor_enable() {
   int i;
   for(i=0;i<NUM_AXIES;++i) {  
@@ -420,7 +465,6 @@ void motor_enable() {
   }
   Serial.println("Motors enable");
 }
-
 
 void motor_disable() {
   int i;
@@ -430,11 +474,62 @@ void motor_disable() {
   Serial.println("Motors disable");
 }
 
+// Read from thermistor
+void Thermistor(int heater){
+  float filtered = adcFilter2.filter(analogRead(heaters[heater].therm_pin));
+  float R1 = 4700.;   // This resistor is fixed on the RAMPS PCB.
+  float Ro = 100000.; // This is from the thermistor spec sheet
+  float beta = 3950.; // This is from the thermistor spec sheet
+  float To = 298.15;     // This is from the thermistor spec sheet
+  float R;
+  float Temp;
+  R  = R1 / ((1023. / filtered) - 1.);
+  Temp = 1 / ((1 / beta) * log(R / Ro) + 1 / To);
+  Temp = Temp - 273.15;            // Convert Kelvin to Celcius
+  heaters[heater].temp = Temp; // deg C
+}
+
+void Temp_control(int heater){
+  Thermistor(heater);
+  if (heaters[heater].temp > heaters[heater].reach_temp) {
+    digitalWrite(heaters[heater].heating_pin, LOW);
+    Serial.print("off");
+  } else if (heaters[heater].temp < heaters[heater].reach_temp) {
+    digitalWrite(heaters[heater].heating_pin, HIGH);
+    Serial.print("on");
+  }
+}
+
+void Temp_control_wait(int heater){
+  bool loop = 1, higher;
+  Thermistor(heater);
+  if (heaters[heater].temp > heaters[heater].reach_temp) {
+    higher = 0;
+    digitalWrite(heaters[heater].heating_pin, LOW);
+  } else if (heaters[heater].temp < heaters[heater].reach_temp) {
+    higher = 1;
+    digitalWrite(heaters[heater].heating_pin, HIGH);
+  }
+  while(loop == 1){
+    Thermistor(heater);
+    if ((higher == 0)&&(heaters[heater].temp < heaters[heater].reach_temp)) {
+      loop = 0;
+    } else if ((higher == 1)&&(heaters[heater].temp > heaters[heater].reach_temp)) {
+      loop = 0;
+    }
+    Serial.println(heaters[heater].temp);
+    delay(2000);
+  }
+  Serial.println("Control goal reached");
+}
+
 void setup() {
   Serial.begin(BAUD);  // open coms
 
   motor_setup();
   motor_enable();
+
+  heater_setup();
   
   where();  // for debugging purposes
   help();  // say hello
@@ -445,14 +540,10 @@ void setup() {
 
 void loop() {
   // listen for serial commands
-  /*
   while(Serial.available() > 0) {  // if something is available
     String cmd=Serial.readStringUntil('\n');  // get it
     Serial.println(cmd);  // repeat it back so I know you got the message
     processCommand(cmd);  // do something with the command
-    
     //delay(5000)
   }
-  */
-  //onestep(0);
 }
