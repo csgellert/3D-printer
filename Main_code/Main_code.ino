@@ -388,6 +388,8 @@ void processCommand(String command) {
   switch(cmd) {
   case  17:  motor_enable();  break;
   case  18:  motor_disable();  break;
+  case 106: fan_turnon(); break; // turn on the hotend fan
+  case 107: fan_turnoff(); break; // turn off the hotend fan
   case 104: {  // set hotend temperature
     heaters[0].reach_temp = parseNumber('S',0,command);
     break;
@@ -411,7 +413,9 @@ void processCommand(String command) {
   default:  break;
   }
 }
-
+/*
+ * set up the hotend, hotbed and hotend fan
+*/
 void heater_setup(){
   heaters[0].therm_pin = TEMP_0_PIN;
   heaters[0].heating_pin = RAMPS_D10_PIN;
@@ -426,6 +430,8 @@ void heater_setup(){
   heaters[1].reach_temp = 0;
   pinMode(heaters[0].therm_pin, INPUT_PULLUP);
   pinMode(heaters[1].heating_pin, OUTPUT);
+
+  pinMode(RAMPS_D9_PIN, OUTPUT);
 }
 /**
  * set up the pins for each motor
@@ -472,6 +478,14 @@ void motor_disable() {
     digitalWrite(motors[i].enable_pin,HIGH);
   }
   Serial.println("Motors disable");
+}
+
+void fan_turnon(){
+  digitalWrite(RAMPS_D9_PIN, HIGH);
+}
+
+void fan_turnoff(){
+  digitalWrite(RAMPS_D9_PIN, LOW);
 }
 
 // Read from thermistor
