@@ -117,10 +117,20 @@ void setup() {
   pinMode(X_ENABLE_PIN, OUTPUT);
   pinMode(RAMPS_D10_PIN, OUTPUT);
   pinMode(RAMPS_D9_PIN, OUTPUT);
-  pinMode(TEMP_0_PIN, INPUT_PULLUP);
+  pinMode(X_MIN_PIN, INPUT_PULLUP);
+  pinMode(X_MAX_PIN, INPUT_PULLUP);
+  pinMode(Y_MIN_PIN, INPUT_PULLUP);
+  pinMode(Y_MAX_PIN, INPUT_PULLUP);
+  pinMode(Z_MIN_PIN, INPUT_PULLUP);
+  pinMode(Z_MAX_PIN, INPUT_PULLUP);
   stepper1.setMaxSpeed(2000);
   stepper1.setAcceleration(1200);
-
+  attachInterrupt(digitalPinToInterrupt(X_MIN_PIN),Interrupt1,FALLING);
+  attachInterrupt(digitalPinToInterrupt(X_MAX_PIN),Interrupt1,FALLING);
+  attachInterrupt(digitalPinToInterrupt(Y_MIN_PIN),Interrupt1,FALLING);
+  attachInterrupt(digitalPinToInterrupt(Y_MAX_PIN),Interrupt1,FALLING);
+  attachInterrupt(digitalPinToInterrupt(Z_MIN_PIN),Interrupt1,FALLING);
+  attachInterrupt(digitalPinToInterrupt(Z_MAX_PIN),Interrupt1,FALLING);
   digitalWrite(X_ENABLE_PIN, LOW);
 
   //digitalWrite(RAMPS_D10_PIN, HIGH);
@@ -132,12 +142,17 @@ void loop() {
   //position1(step);
   step = step + 3000;
   delay(1000);
-  Temp_C = Thermistor(TEMP_0_PIN);        // read temperature from thermistor
-  Serial.println(Temp_C);
+  //emp_C = Thermistor(TEMP_0_PIN);        // read temperature from thermistor
+  Serial.println(digitalRead(X_MIN_PIN));
+  //Serial.println(digitalRead(X_MAX_PIN));
   
   //stepper1.setSpeed(-300);
   //stepper1.runSpeed(); 
   //Serial.println(stepper1.currentPosition());
+}
+
+void Interrupt1 (){
+  Serial.println("Interrupt1");
 }
 
 void position1(double k)

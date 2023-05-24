@@ -14,17 +14,16 @@ void setup() {
   //Serial.print("\n \n");
   //Serial.println(sbuf);
   Serial.print("\n \n");
-  String file = CutComments(sbuf);
-  Serial.println(file);
+  //String file = CutComments(sbuf);
+  Serial.println(sbuf);
   Serial.print("Number of lines: ");
-  Serial.println(CountLines(file));
+  Serial.println(CountLines(sbuf));
 }
 
 void loop() {
 }
 
 String CutComments(String buf){
-  //int size = sizeof(buf);
   int index_of_enter;
   String nbuf = "";
   int index_of_comma = buf.indexOf(';');
@@ -38,18 +37,25 @@ String CutComments(String buf){
 }
 
 int CountLines(String buf){
-  //int size = sizeof(buf);
-  int count = 0, index_of_enter, temp = 0;
-  Serial.print("Started");
+  int count = 0, index_of_enter = 0, temp = 0;
   while (index_of_enter != -1){
-    index_of_enter = buf.indexOf("\n",temp);
+    index_of_enter = buf.indexOf("\n",temp+1);
     count++;
     temp = index_of_enter;
-    Serial.print(index_of_enter);
   }
   return count;
 }
 
+String MakeArray(String buf){
+  int lines = CountLines(buf), count = 0, index_of_enter = 0, temp = 0;
+  String array[lines];
+  for (int i = 0; i<lines; i++){
+    index_of_enter = buf.indexOf("\n",temp+1);
+    array[i] = buf.substring(temp, index_of_enter);
+    temp = index_of_enter;
+  }
+  return array;
+}
 
 String ReadLine(char buf,int line){
   for (int i = 0; i < line; i++){

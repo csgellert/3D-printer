@@ -119,7 +119,8 @@ typedef struct {
   int step_pin;
   int dir_pin;
   int enable_pin;
-  int limit_switch_pin;
+  int max_pin;
+  int min_pin;
 } Motor;
 
 typedef struct {
@@ -137,6 +138,7 @@ Axis atemp;  // for line()
 Motor motors[NUM_AXIES];
 Heater heaters[2];
 
+bool intr_hap = 0;
 // speeds
 float fr=0;  // human version
 long step_delay;  // machine version
@@ -280,8 +282,16 @@ void line(float newx,float newy,float newz) {
 #ifdef VERBOSE
   Serial.println(F("< Done."));
 #endif
-
-  position(newx,newy,newz);
+  if (intr_hap == 0){
+    position(newx,newy,newz);
+  }
+  else if(intr_hap ==1){
+    for(int i=0;i<1;++i) {  
+    // set the motor pin & scale
+    //motor_calibration(i);
+    }
+  }
+  intr_hap = 0;
 
   where();
 }
@@ -441,17 +451,20 @@ void motor_setup() {
   motors[0].step_pin=X_STEP_PIN;
   motors[0].dir_pin=X_DIR_PIN;
   motors[0].enable_pin=X_ENABLE_PIN;
-  motors[0].limit_switch_pin=9;
+  motors[0].max_pin = X_MAX_PIN;
+  motors[0].min_pin = X_MIN_PIN;
 
   motors[1].step_pin=Y_STEP_PIN;
   motors[1].dir_pin=Y_DIR_PIN;
   motors[1].enable_pin=Y_ENABLE_PIN;
-  motors[1].limit_switch_pin=10;
+  motors[1].max_pin = Z_MAX_PIN;
+  motors[1].min_pin = Z_MIN_PIN;
 
   motors[2].step_pin=Z_STEP_PIN;
   motors[2].dir_pin=Z_DIR_PIN;
   motors[2].enable_pin=Z_ENABLE_PIN;
-  motors[2].limit_switch_pin=11;
+  motors[2].max_pin = Y_MAX_PIN;
+  motors[2].min_pin = Y_MIN_PIN;
 
   int i;
   for(i=0;i<NUM_AXIES;++i) {  
@@ -459,9 +472,39 @@ void motor_setup() {
     pinMode(motors[i].step_pin,OUTPUT);
     pinMode(motors[i].dir_pin,OUTPUT);
     pinMode(motors[i].enable_pin,OUTPUT);
+    pinMode(motors[i].max_pin, INPUT_PULLUP);
+    pinMode(motors[i].min_pin, INPUT_PULLUP);
+  }
+
+  for(int i=0;i<1;++i) {  
+    // set the motor pin & scale
+    //motor_calibration(i);
   }
   //AccelStepper motors[0] = AccelStepper(motorInterfaceType, X_STEP_PIN, X_DIR_PIN);
 
+  attachInterrupt(digitalPinToInterrupt(X_MIN_PIN),Stop_motors,FALLING);
+  attachInterrupt(digitalPinToInterrupt(X_MAX_PIN),Stop_motors,FALLING);
+  attachInterrupt(digitalPinToInterrupt(Y_MIN_PIN),Stop_motors,FALLING);
+  attachInterrupt(digitalPinToInterrupt(Y_MAX_PIN),Stop_motors,FALLING);
+  //attachInterrupt(digitalPinToInterrupt(Z_MIN_PIN),Stop_motors,FALLING);
+  //attachInterrupt(digitalPinToInterrupt(Z_MAX_PIN),Stop_motors,FALLING);
+}
+
+void motor_calibration(int motor){
+  noInterrupts();
+  Serial.println("Calibration start");
+  digitalWrite(motors[motor].dir_pin,LOW);
+  int loop = digitalRead(motors[motor].min_pin);
+  while(loop != 0){
+    digitalWrite(motors[motor].step_pin,HIGH);
+    digitalWrite(motors[motor].step_pin,LOW);
+    loop = digitalRead(motors[motor].min_pin);
+    delayMicroseconds(MAX_FEEDRATE/5000);
+  }
+  position(0,0,0);
+  
+  Serial.println("Calibration done");
+  interrupts(); 
 }
 
 void motor_enable() {
@@ -478,6 +521,21 @@ void motor_disable() {
     digitalWrite(motors[i].enable_pin,HIGH);
   }
   Serial.println("Motors disable");
+}
+
+void Stop_motors(){
+  for(int i=0;i<NUM_AXIES;++i) {
+    if (digitalRead(motors[i].dir_pin) == 0){
+      digitalWrite(motors[i].dir_pin,HIGH);
+    }
+    else if (digitalRead(motors[i].dir_pin) == 1){
+      digitalWrite(motors[i].dir_pin,LOW);
+    }
+  }
+  position(0,0,0);
+  line(0,0,0);
+  intr_hap = 1;
+  Serial.println("interrupt");
 }
 
 void fan_turnon(){
@@ -538,8 +596,11 @@ void Temp_control_wait(int heater){
 }
 
 void setup() {
+  noInterrupts();
   Serial.begin(BAUD);  // open coms
-
+  Serial.println();
+  Serial.println("started");
+  Serial.println();
   motor_setup();
   motor_enable();
 
@@ -547,8 +608,10 @@ void setup() {
   
   where();  // for debugging purposes
   help();  // say hello
-  position(0,0,0);  // set starting position
-  feedrate(1000);  // set default speed
+  //position(0,0,0);  // set starting position
+  feedrate(300);  // set default speed
+  delay(1000);
+  interrupts();
 }
 
 
