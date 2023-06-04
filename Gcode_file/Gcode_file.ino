@@ -46,6 +46,7 @@ int CountLines(String buf){
   return count;
 }
 
+/*
 String MakeArray(String buf){
   int lines = CountLines(buf), count = 0, index_of_enter = 0, temp = 0;
   String array[lines];
@@ -56,7 +57,7 @@ String MakeArray(String buf){
   }
   return array;
 }
-
+*/
 String ReadLine(char buf,int line){
   for (int i = 0; i < line; i++){
 

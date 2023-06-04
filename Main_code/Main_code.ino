@@ -340,6 +340,7 @@ void where() {
   output("Z",pz);
   output("F",fr/STEPS_PER_MM*60);
   Serial.println(mode_abs?"ABS":"REL");
+  Serial.println();
 } 
 
 
@@ -376,7 +377,7 @@ void processCommand(String command) {
   switch(cmd) {
   case  0:
   case  1: { // line
-    feedrate(parseNumber('F',fr, command));
+    feedrate(parseNumber('F',fr/STEPS_PER_MM*60, command));
     line( parseNumber('X',(mode_abs?px:0), command) + (mode_abs?0:px),
           parseNumber('Y',(mode_abs?py:0), command) + (mode_abs?0:py),
           parseNumber('Z',(mode_abs?pz:0), command) + (mode_abs?0:pz) );
@@ -524,6 +525,7 @@ void motor_disable() {
 }
 
 void Stop_motors(){
+  noInterrupts();
   for(int i=0;i<NUM_AXIES;++i) {
     if (digitalRead(motors[i].dir_pin) == 0){
       digitalWrite(motors[i].dir_pin,HIGH);
@@ -532,10 +534,16 @@ void Stop_motors(){
       digitalWrite(motors[i].dir_pin,LOW);
     }
   }
+  while (digitalRead(X_MAX_PIN) == 0){
+    digitalWrite(motors[1].step_pin,HIGH);
+    digitalWrite(motors[1].step_pin,LOW);
+    delayMicroseconds(MAX_FEEDRATE/5000);
+  }
   position(0,0,0);
   line(0,0,0);
   intr_hap = 1;
   Serial.println("interrupt");
+  interrupts();
 }
 
 void fan_turnon(){
@@ -609,7 +617,7 @@ void setup() {
   where();  // for debugging purposes
   help();  // say hello
   //position(0,0,0);  // set starting position
-  feedrate(300);  // set default speed
+  feedrate(5);  // set default speed
   delay(1000);
   interrupts();
 }
