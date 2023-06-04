@@ -1,3 +1,4 @@
+
 /*
 
   Listfiles
@@ -48,11 +49,11 @@
 #include <SD.h>
 #include <SPI.h>
 #include <Wire.h>
-#include <U8g2lib.h>     /* LCD */
+//#include <U8g2lib.h>     /* LCD */
 #include "SD_process.h"
 
 //const int chipSelect = 4;
-U8G2_ST7920_128X64_1_SW_SPI u8g2(U8G2_R0, 3, 1, 0);
+//U8G2_ST7920_128X64_1_SW_SPI u8g2(U8G2_R0, 3, 1, 0);
 //File root;
 
 void setup() {
@@ -60,7 +61,7 @@ void setup() {
  // Open serial communications and wait for port to open:
 
   Serial.begin(9600);
-  u8g2.begin();
+  //u8g2.begin();
   // wait for Serial Monitor to connect. Needed for native USB port boards only:
 
   while (!Serial);
@@ -69,9 +70,12 @@ void setup() {
   SD_process SD_card;
   SD_card.printDirectory(SD_card.root,0);
   //SD_card.readFromSD();
-  //Serial.print(SD_card.readActiveLine());
-  //Serial.print(SD_card.readActiveLine());
-  //Serial.print(SD_card.readActiveLine());
+  Serial.print(SD_card.readActiveLine());
+  Serial.print(SD_card.readActiveLine());
+  Serial.print(SD_card.readActiveLine());
+  Serial.print(SD_card.readActiveLine());
+  Serial.print(SD_card.readActiveLine());
+  Serial.print(SD_card.readActiveLine());
   //Serial.print(SD_card.readActiveLine());
   //enum {BufSize=24}; // If a is short use a smaller number, eg 5 or 6 
   // char buf[BufSize];
@@ -80,6 +84,7 @@ void setup() {
 }
 
 void loop() {
+  /*
   u8g2.firstPage();
   do {
     u8g2.setFont(u8g2_font_ncenB14_tr);
@@ -90,7 +95,9 @@ void loop() {
   // Put in a slight delay to help debounce the reading
   delay(10);
   // nothing happens after setup finishes.
+  */
 }
+
 /*
 void printDirectory(File dir, int numTabs) {
   while (true) {

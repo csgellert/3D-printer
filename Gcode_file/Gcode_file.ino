@@ -58,8 +58,4 @@ String MakeArray(String buf){
   return array;
 }
 */
-String ReadLine(char buf,int line){
-  for (int i = 0; i < line; i++){
 
-  }
-}

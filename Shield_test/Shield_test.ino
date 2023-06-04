@@ -146,8 +146,8 @@ void loop() {
   Serial.println(digitalRead(X_MIN_PIN));
   //Serial.println(digitalRead(X_MAX_PIN));
   
-  //stepper1.setSpeed(-300);
-  //stepper1.runSpeed(); 
+  stepper1.setSpeed(-300);
+  stepper1.runSpeed(); 
   //Serial.println(stepper1.currentPosition());
 }
 

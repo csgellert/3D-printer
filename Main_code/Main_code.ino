@@ -4,13 +4,19 @@
 #define STEPS_PER_MM         (STEPS_PER_TURN*16/0.8)  // (400*16)/0.8 with a M5 spindle
 #define MAX_FEEDRATE         (1000000)
 #define MIN_FEEDRATE         (1)
-#define NUM_AXIES            (3)
+#define NUM_AXIES            (4)
 #define motorInterfaceType 1          // For the motor interfaces
 
 #include <AccelStepper.h>
 #include <Ewma.h> // exponential filter
+#include <SD.h>
+#include <SPI.h>
+#include <Wire.h>
+//#include <U8g2lib.h>     /* LCD */
+#include "SD_process.h"
 
 Ewma adcFilter2(0.05);
+//U8G2_ST7920_128X64_1_SW_SPI u8g2(U8G2_R0, 3, 1, 0);
 #pragma once
 
 /**
@@ -41,7 +47,7 @@ Ewma adcFilter2(0.05);
 #define X_STEP_PIN                         54
 #define X_DIR_PIN                          55
 #define X_ENABLE_PIN                       38
-#define X_CS_PIN                           53
+//#define X_CS_PIN                           53
 
 #define Y_STEP_PIN                         60
 #define Y_DIR_PIN                          61
@@ -138,17 +144,22 @@ Axis atemp;  // for line()
 Motor motors[NUM_AXIES];
 Heater heaters[2];
 
+SD_process SD_card;
+
+
 bool intr_hap = 0;
 // speeds
 float fr=0;  // human version
 long step_delay;  // machine version
 
-float px,py,pz;  // position
+float px,py,pz,pe;  // position
 
 // settings
 char mode_abs=1;  // absolute mode?
 
 long line_number=0;
+
+String cmd_line, cmd;
 
 //------------------------------------------------------------------------------
 // METHODS
@@ -193,11 +204,12 @@ void feedrate(float nfr) {
  * @input npx new position x
  * @input npy new position y
  */
-void position(float npx,float npy,float npz) {
+void position(float npx,float npy,float npz, float npe) {
   // here is a good place to add sanity tests
   px=npx;
   py=npy;
   pz=npz;
+  pe=npe;
 }
 
 /**
@@ -221,10 +233,11 @@ void onestep(int motor) {
  * @input newy the destination y position
  *
  */
-void line(float newx,float newy,float newz) {
+void line(float newx,float newy,float newz, float newe) {
   a[0].delta = (newx-px)*STEPS_PER_MM;
   a[1].delta = (newy-py)*STEPS_PER_MM;
   a[2].delta = (newz-pz)*STEPS_PER_MM;
+  a[3].delta = (newe-pe)*STEPS_PER_MM;
   
   long i,j,maxsteps=0;
 
@@ -283,7 +296,7 @@ void line(float newx,float newy,float newz) {
   Serial.println(F("< Done."));
 #endif
   if (intr_hap == 0){
-    position(newx,newy,newz);
+    position(newx,newy,newz,newe);
   }
   else if(intr_hap ==1){
     for(int i=0;i<1;++i) {  
@@ -338,6 +351,7 @@ void where() {
   output("X",px);
   output("Y",py);
   output("Z",pz);
+  output("E",pe);
   output("F",fr/STEPS_PER_MM*60);
   Serial.println(mode_abs?"ABS":"REL");
   Serial.println();
@@ -380,7 +394,8 @@ void processCommand(String command) {
     feedrate(parseNumber('F',fr/STEPS_PER_MM*60, command));
     line( parseNumber('X',(mode_abs?px:0), command) + (mode_abs?0:px),
           parseNumber('Y',(mode_abs?py:0), command) + (mode_abs?0:py),
-          parseNumber('Z',(mode_abs?pz:0), command) + (mode_abs?0:pz) );
+          parseNumber('Z',(mode_abs?pz:0), command) + (mode_abs?0:pz),
+          parseNumber('E',(mode_abs?pe:0), command) + (mode_abs?0:pe) );
     break;
     }
   case  2:
@@ -390,7 +405,8 @@ void processCommand(String command) {
   case 92:  // set logical position
     position( parseNumber('X',0, command),
               parseNumber('Y',0, command),
-              parseNumber('Z',0, command) );
+              parseNumber('Z',0, command),
+              parseNumber('E',0, command) );
     break;
   default:  break;
   }
@@ -403,6 +419,7 @@ void processCommand(String command) {
   case 107: fan_turnoff(); break; // turn off the hotend fan
   case 104: {  // set hotend temperature
     heaters[0].reach_temp = parseNumber('S',0,command);
+    Temp_control(0);
     break;
   }
   case 109: {  // set hotend temperature and wait
@@ -412,6 +429,7 @@ void processCommand(String command) {
   }
   case 140: {  // set bed temperature
     heaters[1].reach_temp = parseNumber('S',0,command);
+    Temp_control(1);
     break;
   }
   case 190: {  // set bed temperature and wait
@@ -467,6 +485,12 @@ void motor_setup() {
   motors[2].max_pin = Y_MAX_PIN;
   motors[2].min_pin = Y_MIN_PIN;
 
+  motors[3].step_pin=E1_STEP_PIN;
+  motors[3].dir_pin=E1_DIR_PIN;
+  motors[3].enable_pin=E1_ENABLE_PIN;
+  //motors[3].max_pin = Y_MAX_PIN;
+  //motors[3].min_pin = Y_MIN_PIN;
+
   int i;
   for(i=0;i<NUM_AXIES;++i) {  
     // set the motor pin & scale
@@ -502,7 +526,7 @@ void motor_calibration(int motor){
     loop = digitalRead(motors[motor].min_pin);
     delayMicroseconds(MAX_FEEDRATE/5000);
   }
-  position(0,0,0);
+  position(0,0,0,0);
   
   Serial.println("Calibration done");
   interrupts(); 
@@ -539,8 +563,8 @@ void Stop_motors(){
     digitalWrite(motors[1].step_pin,LOW);
     delayMicroseconds(MAX_FEEDRATE/5000);
   }
-  position(0,0,0);
-  line(0,0,0);
+  position(0,0,0,0);
+  line(0,0,0,0);
   intr_hap = 1;
   Serial.println("interrupt");
   interrupts();
@@ -556,7 +580,8 @@ void fan_turnoff(){
 
 // Read from thermistor
 void Thermistor(int heater){
-  float filtered = adcFilter2.filter(analogRead(heaters[heater].therm_pin));
+  //float filtered = adcFilter2.filter(analogRead(heaters[heater].therm_pin));
+  float filtered = analogRead(heaters[heater].therm_pin);
   float R1 = 4700.;   // This resistor is fixed on the RAMPS PCB.
   float Ro = 100000.; // This is from the thermistor spec sheet
   float beta = 3950.; // This is from the thermistor spec sheet
@@ -578,6 +603,7 @@ void Temp_control(int heater){
     digitalWrite(heaters[heater].heating_pin, HIGH);
     Serial.print("on");
   }
+  Serial.println(heaters[heater].temp);
 }
 
 void Temp_control_wait(int heater){
@@ -604,6 +630,7 @@ void Temp_control_wait(int heater){
 }
 
 void setup() {
+  Serial.println("code Started");
   noInterrupts();
   Serial.begin(BAUD);  // open coms
   Serial.println();
@@ -614,21 +641,35 @@ void setup() {
 
   heater_setup();
   
+
   where();  // for debugging purposes
   help();  // say hello
   //position(0,0,0);  // set starting position
   feedrate(5);  // set default speed
   delay(1000);
   interrupts();
+  //Serial.println();
+  
+  cmd_line = SD_card.readActiveLine();
+  //Serial.println(cmd_line);
+  //SD_card.printDirectory(SD_card.root,0);
+  //SD_card.readFromSD();
 }
 
 
 void loop() {
   // listen for serial commands
-  while(Serial.available() > 0) {  // if something is available
-    String cmd=Serial.readStringUntil('\n');  // get it
-    Serial.println(cmd);  // repeat it back so I know you got the message
-    processCommand(cmd);  // do something with the command
-    //delay(5000)
-  }
+  
+  //while(Serial.available() > 0) {  // if something is available
+    //Serial.print(cmd_line);
+    //while(cmd_line != "EOF"){
+    //while(cmd_line != "EOF"){
+      cmd=Serial.readStringUntil('\n');  // get it
+      Serial.println(cmd);  // repeat it back so I know you got the message
+      processCommand(cmd);  // do something with the command
+      //cmd_line = SD_card.readActiveLine();
+      delay(400);
+    //}
+  //}
+  
 }

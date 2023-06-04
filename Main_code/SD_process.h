@@ -17,6 +17,7 @@ public:
     ~SD_process();
     void printDirectory(File dir, int numTabs);
     bool isGcode(const char* filename);
+    bool finished;
     void readFromSD();
     String readActiveLine();
 };
