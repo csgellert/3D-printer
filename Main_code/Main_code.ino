@@ -2,6 +2,10 @@
 //#define MAX_BUF              (64)                     // What is the longest message Arduino can store?
 #define STEPS_PER_TURN       (200)                    // depends on your stepper motor.  most are 200.
 #define STEPS_PER_MM         (STEPS_PER_TURN*16/0.8)  // (400*16)/0.8 with a M5 spindle
+#define STEPS_PER_MM_X         STEPS_PER_MM
+#define STEPS_PER_MM_Y         STEPS_PER_MM
+#define STEPS_PER_MM_Z         STEPS_PER_MM
+#define STEPS_PER_MM_E         STEPS_PER_MM*0.01
 #define MAX_FEEDRATE         (1000000)
 #define MIN_FEEDRATE         (1)
 #define NUM_AXIES            (4)
@@ -234,10 +238,10 @@ void onestep(int motor) {
  *
  */
 void line(float newx,float newy,float newz, float newe) {
-  a[0].delta = (newx-px)*STEPS_PER_MM;
-  a[1].delta = (newy-py)*STEPS_PER_MM;
-  a[2].delta = (newz-pz)*STEPS_PER_MM;
-  a[3].delta = (newe-pe)*STEPS_PER_MM;
+  a[0].delta = (newx-px)*STEPS_PER_MM_X;
+  a[1].delta = (newy-py)*STEPS_PER_MM_Y;
+  a[2].delta = (newz-pz)*STEPS_PER_MM_Z;
+  a[3].delta = (newe-pe)*STEPS_PER_MM_E;
   
   long i,j,maxsteps=0;
 
@@ -507,10 +511,10 @@ void motor_setup() {
   }
   //AccelStepper motors[0] = AccelStepper(motorInterfaceType, X_STEP_PIN, X_DIR_PIN);
 
-  attachInterrupt(digitalPinToInterrupt(X_MIN_PIN),Stop_motors,FALLING);
-  attachInterrupt(digitalPinToInterrupt(X_MAX_PIN),Stop_motors,FALLING);
-  attachInterrupt(digitalPinToInterrupt(Y_MIN_PIN),Stop_motors,FALLING);
-  attachInterrupt(digitalPinToInterrupt(Y_MAX_PIN),Stop_motors,FALLING);
+  attachInterrupt(digitalPinToInterrupt(X_MIN_PIN),Stop_Xmotor_Min,FALLING);
+  attachInterrupt(digitalPinToInterrupt(X_MAX_PIN),Stop_Xmotor_Max,FALLING);
+  attachInterrupt(digitalPinToInterrupt(Y_MIN_PIN),Stop_Ymotor_Min,FALLING);
+  attachInterrupt(digitalPinToInterrupt(Y_MAX_PIN),Stop_Ymotor_Max,FALLING);
   //attachInterrupt(digitalPinToInterrupt(Z_MIN_PIN),Stop_motors,FALLING);
   //attachInterrupt(digitalPinToInterrupt(Z_MAX_PIN),Stop_motors,FALLING);
 }
@@ -548,7 +552,7 @@ void motor_disable() {
   Serial.println("Motors disable");
 }
 
-void Stop_motors(){
+void Stop_Xmotor_Max(){
   noInterrupts();
   for(int i=0;i<NUM_AXIES;++i) {
     if (digitalRead(motors[i].dir_pin) == 0){
@@ -558,7 +562,73 @@ void Stop_motors(){
       digitalWrite(motors[i].dir_pin,LOW);
     }
   }
-  while (digitalRead(X_MAX_PIN) == 0){
+  while (digitalRead(motors[0].max_pin) == 0){
+    digitalWrite(motors[0].step_pin,HIGH);
+    digitalWrite(motors[0].step_pin,LOW);
+    delayMicroseconds(MAX_FEEDRATE/5000);
+  }
+  position(0,0,0,0);
+  line(0,0,0,0);
+  intr_hap = 1;
+  Serial.println("interrupt");
+  interrupts();
+}
+
+void Stop_Xmotor_Min(){
+  noInterrupts();
+  for(int i=0;i<NUM_AXIES;++i) {
+    if (digitalRead(motors[i].dir_pin) == 0){
+      digitalWrite(motors[i].dir_pin,HIGH);
+    }
+    else if (digitalRead(motors[i].dir_pin) == 1){
+      digitalWrite(motors[i].dir_pin,LOW);
+    }
+  }
+  while (digitalRead(motors[0].min_pin) == 0){
+    digitalWrite(motors[0].step_pin,HIGH);
+    digitalWrite(motors[0].step_pin,LOW);
+    delayMicroseconds(MAX_FEEDRATE/5000);
+  }
+  position(0,0,0,0);
+  line(0,0,0,0);
+  intr_hap = 1;
+  Serial.println("interrupt");
+  interrupts();
+}
+
+void Stop_Ymotor_Max(){
+  noInterrupts();
+  for(int i=0;i<NUM_AXIES;++i) {
+    if (digitalRead(motors[i].dir_pin) == 0){
+      digitalWrite(motors[i].dir_pin,HIGH);
+    }
+    else if (digitalRead(motors[i].dir_pin) == 1){
+      digitalWrite(motors[i].dir_pin,LOW);
+    }
+  }
+  while (digitalRead(motors[1].max_pin) == 0){
+    digitalWrite(motors[1].step_pin,HIGH);
+    digitalWrite(motors[1].step_pin,LOW);
+    delayMicroseconds(MAX_FEEDRATE/5000);
+  }
+  position(0,0,0,0);
+  line(0,0,0,0);
+  intr_hap = 1;
+  Serial.println("interrupt");
+  interrupts();
+}
+
+void Stop_Ymotor_Min(){
+  noInterrupts();
+  for(int i=0;i<NUM_AXIES;++i) {
+    if (digitalRead(motors[i].dir_pin) == 0){
+      digitalWrite(motors[i].dir_pin,HIGH);
+    }
+    else if (digitalRead(motors[i].dir_pin) == 1){
+      digitalWrite(motors[i].dir_pin,LOW);
+    }
+  }
+  while (digitalRead(motors[1].min_pin) == 0){
     digitalWrite(motors[1].step_pin,HIGH);
     digitalWrite(motors[1].step_pin,LOW);
     delayMicroseconds(MAX_FEEDRATE/5000);
@@ -659,17 +729,17 @@ void setup() {
 
 void loop() {
   // listen for serial commands
-  
   //while(Serial.available() > 0) {  // if something is available
     //Serial.print(cmd_line);
     //while(cmd_line != "EOF"){
     //while(cmd_line != "EOF"){
-      cmd=Serial.readStringUntil('\n');  // get it
+    cmd=Serial.readStringUntil('\n');  // get it
+    if (cmd != ""){
       Serial.println(cmd);  // repeat it back so I know you got the message
       processCommand(cmd);  // do something with the command
       //cmd_line = SD_card.readActiveLine();
-      delay(400);
+    }
+    delay(400);
     //}
   //}
-  
 }
