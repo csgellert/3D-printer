@@ -4,11 +4,15 @@
 
 SD_process::SD_process(/* args */)
 {
-    if (!SD.begin(this->chipSelect)) {
+    this->finished = false;
+}
+void SD_process::Startup()
+{
+  if (!SD.begin(this->chipSelect)) {
         Serial.println("initialization failed. Things to check:");
         while (true);
     }
-  this->finished = false;
+  
   Serial.println("initialization done.");
   this->root = SD.open("/");
 }

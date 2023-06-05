@@ -20,6 +20,7 @@ public:
     bool finished;
     void readFromSD();
     String readActiveLine();
+    void SD_process::Startup();
 };
 
 #endif

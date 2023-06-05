@@ -708,9 +708,8 @@ void setup() {
   Serial.println();
   motor_setup();
   motor_enable();
-
-  heater_setup();
   
+  heater_setup();
 
   where();  // for debugging purposes
   help();  // say hello
@@ -719,8 +718,8 @@ void setup() {
   delay(1000);
   interrupts();
   //Serial.println();
-  
-  cmd_line = SD_card.readActiveLine();
+  SD_card.Startup();
+  //cmd_line = SD_card.readActiveLine();
   //Serial.println(cmd_line);
   //SD_card.printDirectory(SD_card.root,0);
   //SD_card.readFromSD();
