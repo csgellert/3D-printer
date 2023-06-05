@@ -16,11 +16,11 @@
 #include <SD.h>
 #include <SPI.h>
 #include <Wire.h>
-//#include <U8g2lib.h>     /* LCD */
+#include <U8g2lib.h>     /* LCD */
 #include "SD_process.h"
 
 Ewma adcFilter2(0.05);
-//U8G2_ST7920_128X64_1_SW_SPI u8g2(U8G2_R0, 3, 1, 0);
+U8G2_ST7920_128X64_1_SW_SPI u8g2(U8G2_R0, 23, 17, 16);
 #pragma once
 
 /**
@@ -698,6 +698,23 @@ void Temp_control_wait(int heater){
   }
   Serial.println("Control goal reached");
 }
+void printToLCD(String ki)
+{
+    //enum {BufSize=24}; // If a is short use a smaller number, eg 5 or 6 
+    //char buf[BufSize];
+    //snprintf (buf, BufSize, "ir:%d\t il:%d\t il:%d", ir, il,counter);
+    u8g2.firstPage();
+    int str_len = ki.length() + 1;
+    char char_array[str_len];
+    ki.toCharArray(char_array, str_len);
+    Serial.print("Lcdre: ");
+    Serial.print(char_array);
+    Serial.println("");
+    do {
+      u8g2.setFont(u8g2_font_helvR08_tr);
+      u8g2.drawStr(0,24,char_array);
+    } while ( u8g2.nextPage() );
+}
 
 void setup() {
   Serial.println("code Started");
@@ -719,6 +736,7 @@ void setup() {
   interrupts();
   //Serial.println();
   SD_card.Startup();
+  u8g2.begin();
   //cmd_line = SD_card.readActiveLine();
   //Serial.println(cmd_line);
   //SD_card.printDirectory(SD_card.root,0);
@@ -735,6 +753,7 @@ void loop() {
     cmd=Serial.readStringUntil('\n');  // get it
     if (cmd != ""){
       Serial.println(cmd);  // repeat it back so I know you got the message
+      printToLCD(cmd);
       processCommand(cmd);  // do something with the command
       //cmd_line = SD_card.readActiveLine();
     }
