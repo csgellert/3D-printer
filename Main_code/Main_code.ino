@@ -154,7 +154,7 @@ void setup() {
   u8g2.begin();
   u8g2.setFont(u8g2_font_ncenB14_tr);
   u8g2.setFontPosTop();
-  //cmd_line = SD_card.readActiveLine();
+  cmd_line = SD_card.readActiveLine();
   //Serial.println(cmd_line);
   //SD_card.printDirectory(SD_card.root,0);
   //SD_card.readFromSD();
@@ -164,19 +164,21 @@ void loop() {
   // listen for serial commands
   //while(Serial.available() > 0) {  // if something is available
     //Serial.print(cmd_line);
-    //while(cmd_line != "EOF"){
-    //while(cmd_line != "EOF"){
-    cmd=Serial.readStringUntil('\n');  // get it
-    if (cmd != ""){
-      Serial.println(cmd);  // repeat it back so I know you got the message
-      printToLCD(u8g2,cmd,0,24);
-      processCommand(cmd);  // do something with the command
-      //cmd_line = SD_card.readActiveLine();
+    while(cmd_line != "EOF"){
+      //while(cmd_line != "EOF"){
+      //cmd=Serial.readStringUntil('\n');  // get it
+      //if (cmd != ""){
+      Serial.println(cmd_line);  // repeat it back so I know you got the message
+      printToLCD(u8g2,cmd_line,0,24);
+      processCommand(cmd_line);  // do something with the command
+      cmd_line = SD_card.readActiveLine();
+      //}
+      //Serial.print(String(heaters[0].temp));
+      delay(400);
     }
     Temp_control(0);
     printToLCD(u8g2, "T= " + String(heaters[0].temp)+ " C",0,48);
-    //Serial.print(String(heaters[0].temp));
+      //Serial.print(String(heaters[0].temp));
     delay(400);
-    //}
   //}
 }
