@@ -20,7 +20,7 @@
 #include "SD_process.h"
 
 Ewma adcFilter2(0.05);
-U8G2_ST7920_128X64_1_SW_SPI u8g2(U8G2_R0, 23, 17, 16);
+U8G2_ST7920_128X64_F_SW_SPI u8g2(U8G2_R0, 23, 17, 16);
 #pragma once
 
 /**
@@ -461,7 +461,7 @@ void heater_setup(){
   heaters[1].heating_pin = RAMPS_D8_PIN;
   heaters[1].temp = 0;
   heaters[1].reach_temp = 0;
-  pinMode(heaters[0].therm_pin, INPUT_PULLUP);
+  pinMode(heaters[1].therm_pin, INPUT_PULLUP);
   pinMode(heaters[1].heating_pin, OUTPUT);
 
   pinMode(RAMPS_D9_PIN, OUTPUT);
@@ -694,26 +694,28 @@ void Temp_control_wait(int heater){
       loop = 0;
     }
     Serial.println(heaters[heater].temp);
+    printToLCD("T= " + String(heaters[0].temp)+ " C",0,48);
     delay(2000);
   }
   Serial.println("Control goal reached");
 }
-void printToLCD(String ki)
+void printToLCD(String ki, int x, int y)
 {
-    //enum {BufSize=24}; // If a is short use a smaller number, eg 5 or 6 
-    //char buf[BufSize];
-    //snprintf (buf, BufSize, "ir:%d\t il:%d\t il:%d", ir, il,counter);
-    u8g2.firstPage();
-    int str_len = ki.length() + 1;
+    /*int str_len = ki.length() + 1;
     char char_array[str_len];
     ki.toCharArray(char_array, str_len);
-    Serial.print("Lcdre: ");
-    Serial.print(char_array);
-    Serial.println("");
+    u8g2.firstPage();
     do {
       u8g2.setFont(u8g2_font_helvR08_tr);
-      u8g2.drawStr(0,24,char_array);
+      u8g2.drawStr(x,y,char_array);
     } while ( u8g2.nextPage() );
+    */
+    u8g2.setDrawColor(0);
+    u8g2.drawBox(x,y,128,y+24);
+    u8g2.setDrawColor(1);
+    u8g2.setCursor(x, y);
+    u8g2.print(ki);
+    u8g2.updateDisplay(); 
 }
 
 void setup() {
@@ -737,6 +739,8 @@ void setup() {
   //Serial.println();
   SD_card.Startup();
   u8g2.begin();
+  u8g2.setFont(u8g2_font_ncenB14_tr);
+  u8g2.setFontPosTop();
   //cmd_line = SD_card.readActiveLine();
   //Serial.println(cmd_line);
   //SD_card.printDirectory(SD_card.root,0);
@@ -753,10 +757,12 @@ void loop() {
     cmd=Serial.readStringUntil('\n');  // get it
     if (cmd != ""){
       Serial.println(cmd);  // repeat it back so I know you got the message
-      printToLCD(cmd);
+      printToLCD(cmd,0,24);
       processCommand(cmd);  // do something with the command
       //cmd_line = SD_card.readActiveLine();
     }
+    printToLCD("T= " + String(heaters[0].temp)+ " C",0,48);
+    //Serial.print(String(heaters[0].temp));
     delay(400);
     //}
   //}
