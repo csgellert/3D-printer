@@ -761,6 +761,7 @@ void loop() {
       processCommand(cmd);  // do something with the command
       //cmd_line = SD_card.readActiveLine();
     }
+    Temp_control(0);
     printToLCD("T= " + String(heaters[0].temp)+ " C",0,48);
     //Serial.print(String(heaters[0].temp));
     delay(400);
